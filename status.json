@@ -1,0 +1,17 @@
+{
+  "succeed": { "status": {"code": 200, "message": "성공"} },
+  "failed": { "status": {"code": 500, "message": "내부 서버 오류"} },
+  "created": { "status": {"code": 201, "message": "리소스 생성 성공"} },
+
+  "less_parameter": { "status": {"code": 400, "message": "파라미터가 부족합니다"} },
+  "no_permission": { "status": {"code": 401, "message": "권한이 없습니다"} },
+  "not_allow": { "status": {"code": 403, "message": "금지됨"} },
+  "not_found": { "status": {"code": 404, "message": "리소스 등을 찾을 수 없습니다"} },
+
+  "maintenance": { "status": {"code": 503, "message": "서버 유지관리(점검) 진행중입니다"} },
+
+  "already_exists": { "status": {"code": 1001, "message": "계정이 이미 존재합니다"} },
+  "invalid_email": { "status": {"code": 1002, "message": "올바르지 않은 이메일 주소입니다"} },
+  "expires_token": { "status": {"code": 1003, "message": "토큰이 만료되었습니다"} },
+  "too_large": { "status": {"code": 1004, "message": "데이터가 무겁습니다"} }
+}
