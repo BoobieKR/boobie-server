@@ -20,7 +20,8 @@ var userList = [];
 
 io.sockets.on('connection', function (socket) {
     var ioRooms = io.sockets.adapter.rooms;
-    userList[socket.id] = {'socket': socket};
+
+    userList[socket.id] = {'socket': socket, 'room' : ''};
 
     console.log(socket.id + '연결되었습니다.');
 
@@ -81,16 +82,26 @@ io.sockets.on('connection', function (socket) {
     });
 
     socket.on('disconnect', function (data) {
-        var disconnectRoom = userList[socket.id].room;
-        var clientsInRoom = io.sockets.adapter.rooms[disconnectRoom];
-        var remainClients = Object.keys(clientsInRoom.sockets);
 
-        io.sockets.in(disconnectRoom).emit('disconnect');
-        delete userList[socket.id];
+        console.log(socket.id + ' 유저가 나갔습니다.');
+        console.log('유저 목록입니다.\n' + userList);
 
-        remainClients.forEach(function (clientId) {
-            userList[clientId].socket.leave(userList[clientId].room);
-            delete userList[clientId];
-        });
+        if (typeof userList[socket.id] !== 'undefined') {
+            var disconnectRoom = userList[socket.id].room;
+            socket.leave(disconnectRoom);
+            io.sockets.in(disconnectRoom).emit('disconnect');
+            delete userList[socket.id];
+
+            var clientsInRoom = io.sockets.adapter.rooms[disconnectRoom];
+
+            if (typeof clientsInRoom !== 'undefined') {
+                var remainClients = Object.keys(clientsInRoom.sockets);
+
+                remainClients.forEach(function (clientId) {
+                    userList[clientId].socket.leave(userList[clientId].room);
+                    delete userList[clientId];
+                });
+            }
+        }
     });
 });
