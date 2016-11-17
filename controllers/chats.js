@@ -7,7 +7,6 @@
 
 let app = require('express')(),
     http = require('http').Server(app),
-    //TODO 유저 모델의 토큰으로 회원 검증 및 프로필 받기
     User = require('../models/users');
 
 http.listen(8080, function () {
@@ -15,93 +14,191 @@ http.listen(8080, function () {
 });
 
 let io = require('socket.io').listen(http);
-var roomsQueue = [];
-var userList = [];
 
-io.sockets.on('connection', function (socket) {
-    var ioRooms = io.sockets.adapter.rooms;
+var SocketUser = function (userSocket) {
+    this.socket = userSocket;
+    this.userInfo = {};
 
-    userList[socket.id] = {'socket': socket, 'room' : ''};
+    this.joinRoom = function (roomId) {
+        this.roomId = roomId;
+        return this.socket.join(roomId);
+    };
 
-    console.log(socket.id + '연결되었습니다.');
+    this.leaveRoom = function () {
+        this.socket.emit('leaveRoom', {'type': 0});
+        return this.socket.leave(this.roomId);
+    };
 
-    socket.on('watingForStranger', function () {
-        // 만들어진 방이 한개도 없을 때
-        if (!roomsQueue.length) {
-            roomsQueue.push(socket.id);
-            socket.join(socket.id);
-            userList[socket.id].room = socket.id;
-            socket.emit('joinWithStranger', {'type': 0});
-            console.log(socket.id + '상대방을 기다리는 중');
-            console.log(ioRooms);
-            console.log(userList);
-        } else {
-            // 만들어진 방이 1개 이상일 때
-            var isNotFullAll = true;
+    this.getAssignedRoom = function () {
+        return this.roomId;
+    }
 
-            for (var idx in roomsQueue) {
-                var element = roomsQueue[idx];
-                console.log('방이 한개 이상이니 순회하면서 방을 찾아보자.');
-                console.log(element);
-                console.log(ioRooms[element]);
-                if (ioRooms[element] === undefined) {
-                    console.log('어라 이 방은 없는 방인데 ㅇㅂㅇ');
-                    continue;
-                }
-                if (ioRooms[element].length == 1) {
-                    isNotFullAll = false;
-                    socket.join(element);
-                    userList[socket.id].room = element;
-                    console.log(userList);
-                    io.sockets.in(element).emit('joinWithStranger', {'type': 1});
-                    console.log('매칭되었습니다.');
-                    console.log(ioRooms);
-                }
-            }
+    this.getSocket = function () {
+        return this.socket;
+    };
 
-            if (isNotFullAll) {
-                roomsQueue.push(socket.id);
-                socket.join(socket.id);
-                userList[socket.id].room = socket.id;
-                socket.emit('joinWithStranger', {'type': 0});
-                console.log(socket.id + '상대방을 기다리는 중');
-                console.log(ioRooms);
+    this.setUserInfo = function (userInfo) {
+        return this.userInfo = userInfo;
+    };
+
+    this.getUserInfo = function () {
+        return this.userInfo;
+    }
+};
+
+var UserManager = new function () {
+    this.users = [];
+
+    this.addUser = function (user) {
+        this.users.push(user);
+    };
+
+    this.deleteUserById = function (socketId) {
+        for (var userIdx in this.users) {
+            if (this.users[userIdx].socket.id == socketId) {
+                delete this.users[userIdx];
             }
         }
+    };
+
+    this.getUserById = function (socketId) {
+        for (let user of this.users) {
+            console.log(user);
+            if (user.socket.id == socketId)
+                return user;
+        }
+    };
+
+    this.getAllUser = function () {
+        return this.users;
+    };
+
+};
+
+var RoomManager = new function () {
+    this.rooms = io.sockets.adapter.rooms;
+    this.roomLabels = [];
+
+    this.emitAll = function (eventName, eventValue) {
+        for (let room of rooms) {
+            io.sockets.in(room).emit(eventName, eventValue);
+        }
+    };
+
+    this.createRoom = function (user) {
+        var socketId = user.getSocket().id;
+
+        this.roomLabels.push(socketId);
+        user.joinRoom(socketId);
+    };
+
+    this.deleteRoom = function (socketId) {
+        var user = UserManager.getUserById(socketId);
+        var assignedRoom = user.getAssignedRoom();
+        //TODO sockets is undefined
+        var remainUsers = Object.keys(this.rooms[assignedRoom].sockets);
+
+        user.leaveRoom();
+        io.sockets.in(user.getAssignedRoom()).emit('disconnect');
+
+        for (let user of remainUsers) {
+            UserManager.getUserById(user).leaveRoom();
+        }
+
+        delete this.roomLabels.delete(assignedRoom);
+    }
+
+    this.emitById = function (room, eventName, eventValue) {
+        io.sockets.in(room).emit(eventName, eventValue);
+    };
+
+    this.isFull = function (roomId) {
+        return this.rooms[roomId].length == 2;
+    };
+
+    this.isFullAll = function () {
+
+        console.log(this.rooms);
+
+        for (let label of this.roomLabels) {
+            if (this.rooms[label].length == 1) {
+                return false;
+            }
+        }
+        return true;
+    }
+};
+
+io.sockets.on('connection', function (socket) {
+
+    UserManager.addUser(new SocketUser(socket));
+    console.log(socket.id + '연결되었습니다.');
+
+    socket.on('watingForStranger', function (userInfo) {
+        User.findOne({userToken: userInfo.userToken}, function (err, user) {
+            if (!err) {
+                if (user) {
+                    var currentUser = UserManager.getUserById(socket.id);
+                    currentUser.setUserInfo(user);
+                    socket.emit('foundUser', {status: 'success', userInfo: user});
+                    if (!RoomManager.roomLabels.length || RoomManager.isFullAll()) {
+                        console.log('방이 한개도 없거나 전부 다 차서 방을 만들고 기다립니다.');
+                        socket.emit('joinWithStranger', {'type': 0});
+                        RoomManager.createRoom(currentUser);
+                    } else {
+                        for (let label of RoomManager.roomLabels) {
+                            if (!RoomManager.isFull(label)) {
+                                console.log('올ㅋ');
+                                currentUser.joinRoom(label);
+                                socket.emit('joinWithStranger', {'type': 1});
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    socket.emit('foundUser', {status: 'failed'});
+                }
+            } else {
+                console.log('해당 유저를 찾는 중 에러가 발생했습니다.');
+                socket.emit('foundUser', {status: 'error'});
+            }
+        });
     });
 
     socket.on('sendMessage', function (data) {
-        console.log(socket.id + "님께서 메세지를 전송하셨습니다.");
-        console.log(data.message);
-        io.sockets.in(userList[socket.id].room).emit('receiveMessage', data);
+        var user = UserManager.getUserById(socket.id);
+        RoomManager.emitById(user.getAssignedRoom(), 'receiveMessage', data);
+
+        console.log(user.getUserInfo().userName + "님께서 메세지를 전송하셨습니다.");
     });
 
-    socket.on('cancelRequest', function (data) {
-        socket.leave(socket.id);
-        delete roomsQueue[socket.id];
+    socket.on('cancelRequest', function () {
+        var user = UserManager.getUserById(socket.id);
+        user.leaveRoom();
     });
 
-    socket.on('disconnect', function (data) {
-
+    socket.on('disconnect', function () {
         console.log(socket.id + ' 유저가 나갔습니다.');
-        console.log('유저 목록입니다.\n' + userList);
 
-        if (typeof userList[socket.id] !== 'undefined') {
-            var disconnectRoom = userList[socket.id].room;
-            socket.leave(disconnectRoom);
-            io.sockets.in(disconnectRoom).emit('disconnect');
-            delete userList[socket.id];
+        RoomManager.deleteRoom(socket.id);
+        UserManager.deleteUserById(socket.id);
 
-            var clientsInRoom = io.sockets.adapter.rooms[disconnectRoom];
-
-            if (typeof clientsInRoom !== 'undefined') {
-                var remainClients = Object.keys(clientsInRoom.sockets);
-
-                remainClients.forEach(function (clientId) {
-                    userList[clientId].socket.leave(userList[clientId].room);
-                    delete userList[clientId];
-                });
-            }
-        }
+        // if (typeof userList[socket.id] !== 'undefined') {
+        //     var disconnectRoom = userList[socket.id].room;
+        //     socket.leave(disconnectRoom);
+        //     io.sockets.in(disconnectRoom).emit('disconnect');
+        //     delete userList[socket.id];
+        //
+        //     var clientsInRoom = io.sockets.adapter.rooms[disconnectRoom];
+        //
+        //     if (typeof clientsInRoom !== 'undefined') {
+        //         var remainClients = Object.keys(clientsInRoom.sockets);
+        //
+        //         remainClients.forEach(function (clientId) {
+        //             userList[clientId].socket.leave(userList[clientId].room);
+        //             delete userList[clientId];
+        //         });
+        //     }
+        // }
     });
 });
