@@ -20,7 +20,9 @@ exports.signUp = function (req, res) {
                     userId: req.body.userId,
                     userSecret: req.body.userSecret,
                     userEmail: req.body.userEmail,
-                    userToken: secure.generateToken(req.body.userId)
+                    userToken: secure.generateToken(req.body.userId),
+                    gender : req.body.gender,
+                    userType : req.body.type
                 }).save(user).then(function (doc) {
                     return res.status(201).send(_status.created);
                 });
@@ -31,19 +33,19 @@ exports.signUp = function (req, res) {
 
 exports.signIn = function (req, res) {
 
-    if (!req.query.userEmail || !req.query.userSecret) {
-        console.log(req.query.userEmail);
-        console.log(req.query.userSecret);
+    if (!req.body.userEmail || !req.body.userSecret) {
+        console.log(req.body.userEmail);
+        console.log(req.body.userSecret);
         res.status(400).send(_status.less_parameter);
     } else {
-        User.findOne({userEmail: req.query.userEmail}, function (err, user) {
+        User.findOne({userEmail: req.body.userEmail}, function (err, user) {
             if (err)
                 console.log(err);
 
             if (!user) {
                 res.status(404).send(_status.not_found);
             } else {
-                if (user.userSecret == req.query.userSecret) {
+                if (user.userSecret == req.body.userSecret) {
                     var resultJSON = _status.succeed;
                     resultJSON.data = user;
                     res.status(200).send(resultJSON);
