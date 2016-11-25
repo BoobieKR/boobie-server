@@ -96,16 +96,15 @@ var RoomManager = new function () {
         var user = UserManager.getUserById(socketId);
         var assignedRoom = user.getAssignedRoom();
         //TODO sockets is undefined
-        var remainUsers = Object.keys(this.rooms[assignedRoom].sockets);
 
-        user.leaveRoom();
-        io.sockets.in(user.getAssignedRoom()).emit('disconnect');
+        var remainUsers = Object.keys(this.rooms[assignedRoom].sockets);
 
         for (let user of remainUsers) {
             UserManager.getUserById(user).leaveRoom();
         }
 
-        delete this.roomLabels.delete(assignedRoom);
+        io.sockets.in(user.getAssignedRoom()).emit('disconnect');
+        delete this.roomLabels[assignedRoom];
     }
 
     this.emitById = function (room, eventName, eventValue) {
@@ -118,7 +117,9 @@ var RoomManager = new function () {
 
     this.isFullAll = function () {
 
-        console.log(this.rooms);
+        if(!this.roomLabels.length){
+            return false;
+        }
 
         for (let label of this.roomLabels) {
             if (this.rooms[label].length == 1) {
@@ -180,8 +181,8 @@ io.sockets.on('connection', function (socket) {
     socket.on('disconnect', function () {
         console.log(socket.id + ' 유저가 나갔습니다.');
 
+        // UserManager.deleteUserById(socket.id);
         RoomManager.deleteRoom(socket.id);
-        UserManager.deleteUserById(socket.id);
 
         // if (typeof userList[socket.id] !== 'undefined') {
         //     var disconnectRoom = userList[socket.id].room;
@@ -202,3 +203,4 @@ io.sockets.on('connection', function (socket) {
         // }
     });
 });
+/*fuck shit oh my goodness fuck your asshole */
