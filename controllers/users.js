@@ -20,7 +20,9 @@ exports.signUp = function (req, res) {
                     userId: req.body.userId,
                     userSecret: req.body.userSecret,
                     userEmail: req.body.userEmail,
-                    userToken: secure.generateToken(req.body.userId)
+                    userToken: secure.generateToken(req.body.userId),
+                    gender : req.body.gender,
+                    userType : req.body.type
                 }).save(user).then(function (doc) {
                     return res.status(201).send(_status.created);
                 });

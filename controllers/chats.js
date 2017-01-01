@@ -63,7 +63,7 @@ io.sockets.on('connection', function (socket) {
                 roomsQueue.push(socket.id);
                 socket.join(socket.id);
                 userList[socket.id].room = socket.id;
-                socket.emit('joinWithStranger', {'type': 0});
+                socket.emit('join', {'type': 0});
                 console.log(socket.id + '상대방을 기다리는 중');
                 console.log(ioRooms);
             }

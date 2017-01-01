@@ -8,10 +8,11 @@ let mongoose  = require('mongoose'),
     Schema = mongoose.Schema;
 
 var userSchema = new Schema({
-    userId: {type: String, unique: true, required: true, match: /[A-Za-z0-9\-_.]{4,16}/},
+    userName: {type: String, unique: true, required: true, match: /[A-Za-z0-9가-힣\-_.]{4,16}/},
     userSecret: {type: String, required: true},
     userEmail: {type: String, unique: true, required: true},
     userToken: {type: String, required: true},
+    userType : {type : String, enum : ['fb', 'kakao', 'email']},
     gender : {type : String, enum : ['male', 'female'], required: true},
     memberSince: {type: Date, default: Date.now},
 
