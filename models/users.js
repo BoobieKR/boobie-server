@@ -15,16 +15,11 @@ var userSchema = new Schema({
     gender : {type : String, enum : ['male', 'female'], required: true},
     memberSince: {type: Date, default: Date.now},
 
-    followers: [String],
-    followings: [String],
-
     userProfile: {
         name: String,
         description: String,
         image: String,
         cover: String,
-        followers_count: {type: Number, default: 0, min: 0},
-        followings_count: {type: Number, default: 0, min: 0}
     }
 });
 

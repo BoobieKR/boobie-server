@@ -11,24 +11,19 @@ var database = require('./models/database');
 global._status = require('./status');
 
 var app = express();
-var http = require('http').createServer(app);
-var io = require('socket.io')(http);
 
-io.on('connection', function () {
-    console.log('io on connection');
-});
-http.listen(7000);
-
+// LOAD ENVIRONMENT VARIABLES
 var dotenv = require('dotenv');
 dotenv.config({});
 dotenv.load();
 
 var index = require('./routes/index');
 var users = require('./controllers/users');
+var chats = require('./controllers/chats');
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'jade');
+app.set('view engine', 'ejs');
 
 // uncomment after placing your favicon in /public
 // app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
@@ -47,7 +42,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', index);
 
 app.post('/auth/signUp', users.signUp);
-app.get('/auth/signIn', users.signIn);
+app.post('/auth/signIn', users.signIn);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
